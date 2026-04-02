@@ -1721,6 +1721,7 @@ func handleDNSTTMenu() {
 		ui.FormatLine(fmt.Sprintf("%s[ 03 ]%s MOSTRAR CONFIGURAÇÃO (NS + KEY)", ui.Yellow, ui.Reset))
 		ui.FormatLine(fmt.Sprintf("%s[ 04 ]%s DESATIVAR DNSTT", ui.Yellow, ui.Reset))
 		ui.FormatLine(fmt.Sprintf("%s[ 05 ]%s DESINSTALAR DNSTT", ui.Yellow, ui.Reset))
+		ui.FormatLine(fmt.Sprintf("%s[ 06 ]%s ATIVAR DNS RESOLVER (DNS OTIMIZADO)", ui.Cyan, ui.Reset))
 		ui.FormatLine(fmt.Sprintf("%s[ 00 ]%s VOLTAR", ui.Red, ui.Reset))
 		ui.DrawLine()
 
@@ -1736,6 +1737,8 @@ func handleDNSTTMenu() {
 			handleDisableDNSTT()
 		case "05", "5":
 			handleUninstallDNSTT()
+		case "06", "6":
+			handleDNSResolverMenu()
 		case "00", "0":
 			return
 		default:
@@ -1743,6 +1746,118 @@ func handleDNSTTMenu() {
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+func handleDNSResolverMenu() {
+	for {
+		ui.ClearScreen()
+		ui.DrawLine()
+		ui.FormatLine(ui.CenterText("DNS RESOLVER (DNS OTIMIZADO)", ui.PanelWidth-4))
+		ui.DrawLine()
+
+		status, isActive := system.GetDNSResolverStatus()
+		portStr, _ := db.GetConfig("dns_resolver_port")
+		ip := system.GetPublicIP()
+
+		if isActive {
+			ui.FormatLine(fmt.Sprintf("%sSTATUS:%s %s%s%s", ui.Bold, ui.Reset, ui.Green, status, ui.Reset))
+			ui.FormatLine(fmt.Sprintf("%sPORTA:%s  %s", ui.Bold, ui.Reset, portStr))
+			ui.FormatLine(fmt.Sprintf("%sIP:%s     %s", ui.Bold, ui.Reset, ip))
+		} else {
+			ui.FormatLine(fmt.Sprintf("%sSTATUS:%s %s%s%s", ui.Bold, ui.Reset, ui.Red, status, ui.Reset))
+		}
+		ui.DrawLine()
+
+		ui.FormatLine(fmt.Sprintf("%s[ 01 ]%s ATIVAR/INSTALAR DNS", ui.Yellow, ui.Reset))
+		ui.FormatLine(fmt.Sprintf("%s[ 02 ]%s DESATIVAR DNS", ui.Yellow, ui.Reset))
+		ui.FormatLine(fmt.Sprintf("%s[ 03 ]%s EDITAR PORTA", ui.Yellow, ui.Reset))
+		ui.FormatLine(fmt.Sprintf("%s[ 04 ]%s VER DADOS", ui.Yellow, ui.Reset))
+		ui.FormatLine(fmt.Sprintf("%s[ 00 ]%s VOLTAR", ui.Red, ui.Reset))
+		ui.DrawLine()
+
+		choice := ui.GetInput("Escolha uma opção")
+		switch choice {
+		case "01", "1":
+			handleInstallDNSResolver()
+		case "02", "2":
+			if err := system.StopDNSResolver(); err != nil {
+				ui.PrintError(fmt.Sprintf("Erro ao desativar: %v", err))
+			} else {
+				ui.PrintSuccess("DNS Resolver desativado com sucesso!")
+			}
+			pause()
+		case "03", "3":
+			handleEditDNSResolverPort()
+		case "04", "4":
+			ui.ClearScreen()
+			ui.DrawLine()
+			ui.FormatLine(ui.CenterText("DADOS DO DNS RESOLVER", ui.PanelWidth-4))
+			ui.DrawLine()
+			ui.FormatLine(fmt.Sprintf("%sIP:%s     %s", ui.Bold, ui.Reset, ip))
+			ui.FormatLine(fmt.Sprintf("%sPORTA:%s  %s", ui.Bold, ui.Reset, portStr))
+			ui.FormatLine(fmt.Sprintf("%sSTATUS:%s %s", ui.Bold, ui.Reset, status))
+			ui.DrawLine()
+			pause()
+		case "00", "0":
+			return
+		}
+	}
+}
+
+func handleInstallDNSResolver() {
+	ui.ClearScreen()
+	ui.DrawLine()
+	ui.FormatLine(ui.CenterText("INSTALAR DNS RESOLVER", ui.PanelWidth-4))
+	ui.DrawLine()
+
+	ui.FormatLine("O DNS Resolver melhora a velocidade da internet.")
+	ui.FormatLine("Ele pode rodar na porta 53 ou 5353.")
+	ui.DrawLine()
+
+	port := 53
+	if !system.IsPortAvailable(53) {
+		ui.PrintWarning("Porta 53 em uso. Usando porta 5353 como alternativa.")
+		port = 5353
+	}
+
+	choice := ui.GetInput(fmt.Sprintf("Deseja instalar na porta %d? (s/N/custom)", port))
+	if strings.ToLower(choice) == "custom" {
+		pStr := ui.GetInput("Digite a porta customizada")
+		port, _ = strconv.Atoi(pStr)
+	} else if strings.ToLower(choice) != "s" {
+		return
+	}
+
+	ui.PrintWarning("Instalando e configurando Unbound... Aguarde.")
+	if err := system.InstallDNSResolver(port); err != nil {
+		ui.PrintError(fmt.Sprintf("Erro na instalação: %v", err))
+	} else {
+		ui.PrintSuccess("DNS Resolver ativado e otimizado com sucesso!")
+	}
+	pause()
+}
+
+func handleEditDNSResolverPort() {
+	ui.ClearScreen()
+	ui.DrawLine()
+	ui.FormatLine(ui.CenterText("EDITAR PORTA DNS", ui.PanelWidth-4))
+	ui.DrawLine()
+
+	pStr := ui.GetInput("Digite a nova porta (ex: 5353)")
+	p, _ := strconv.Atoi(pStr)
+	if p <= 0 {
+		ui.PrintError("Porta inválida!")
+		pause()
+		return
+	}
+
+	ui.PrintWarning("Atualizando porta e reiniciando DNS Resolver...")
+	if err := system.UpdateDNSResolverPort(p); err != nil {
+		ui.PrintError(fmt.Sprintf("Erro ao atualizar: %v", err))
+	} else {
+		ui.PrintSuccess("Porta atualizada com sucesso!")
+	}
+	pause()
 }
 
 func handleInstallDNSTT() {
