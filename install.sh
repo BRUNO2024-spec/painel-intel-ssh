@@ -31,12 +31,29 @@ apt install -y git wget curl zip unzip screen socat lsof
 
 # 2. Instalar Go 1.22 (Obrigatório)
 echo -e "${YELLOW}[⏳] Configurando ambiente Go 1.22...${RESET}"
-if ! command -v go &> /dev/null || [[ "$(go version | awk '{print $3}')" < "go1.22" ]]; then
-    echo -e "${YELLOW}[⏳] Baixando e instalando Go 1.22...${RESET}"
-    wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz -q
+if ! command -v go &> /dev/null || ! go version &> /dev/null || [[ "$(go version | awk '{print $3}')" < "go1.22" ]]; then
+    echo -e "${YELLOW}[⏳] Detectando arquitetura...${RESET}"
+    ARCH=$(uname -m)
+    case $ARCH in
+        x86_64) GOARCH="amd64" ;;
+        aarch64|arm64) GOARCH="arm64" ;;
+        armv7l|armv6l) GOARCH="armv6l" ;;
+        i386|i686) GOARCH="386" ;;
+        *) echo -e "${RED}Erro: Arquitetura $ARCH não suportada automaticamente.${RESET}"; exit 1 ;;
+    esac
+    
+    echo -e "${YELLOW}[⏳] Baixando e instalando Go 1.22 para $GOARCH...${RESET}"
+    GO_VERSION="1.22.0"
+    GO_TAR="go${GO_VERSION}.linux-${GOARCH}.tar.gz"
+    wget "https://go.dev/dl/${GO_TAR}" -q
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Erro ao baixar o Go. Verifique sua conexão ou se a versão existe.${RESET}"
+        exit 1
+    fi
+    
     rm -rf /usr/local/go
-    tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
-    rm go1.22.0.linux-amd64.tar.gz
+    tar -C /usr/local -xzf "${GO_TAR}"
+    rm "${GO_TAR}"
     
     # Configurar PATH permanentemente
     if ! grep -q "/usr/local/go/bin" ~/.bashrc; then
@@ -49,7 +66,7 @@ fi
 
 # 3. Clonar o Repositório
 echo -e "${YELLOW}[⏳] Clonando repositório do projeto...${RESET}"
-INSTALL_DIR="/root/painel-intel-ssh"
+INSTALL_DIR="/opt/painel-ssh"
 if [ -d "$INSTALL_DIR" ]; then
     echo -e "${YELLOW}[⚠] Pasta já existe. Atualizando repositório...${RESET}"
     cd "$INSTALL_DIR"
@@ -62,8 +79,13 @@ fi
 # 4. Compilar o Projeto
 echo -e "${YELLOW}[⏳] Compilando o Painel SSH...${RESET}"
 go mod tidy
-go build -o painel-ssh cmd/painel/main.go
-chmod +x painel-ssh
+if go build -o painel-ssh cmd/painel/main.go; then
+    chmod +x painel-ssh
+    echo -e "${GREEN}[✔] Compilação concluída com sucesso.${RESET}"
+else
+    echo -e "${RED}Erro: Falha ao compilar o projeto. Verifique as mensagens de erro acima.${RESET}"
+    exit 1
+fi
 
 # 5. Criar link simbólico para acesso fácil
 ln -sf "$INSTALL_DIR/painel-ssh" /usr/local/bin/painel
