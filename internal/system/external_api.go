@@ -475,6 +475,7 @@ func handleCreateUserApi(w http.ResponseWriter, r *http.Request) {
 	_ = db.SaveUser(user)
 
 	// 5. Resposta
+	domain, _ := db.GetConfig("api_domain")
 	w.Header().Set("Content-Type", "application/json")
 	response := map[string]interface{}{
 		"status":       "success",
@@ -484,6 +485,7 @@ func handleCreateUserApi(w http.ResponseWriter, r *http.Request) {
 		"dias_validos": days,
 		"limite":       limit,
 		"xray_uuid":    xrayUUID,
+		"dominio":      domain,
 	}
 	json.NewEncoder(w).Encode(response)
 }

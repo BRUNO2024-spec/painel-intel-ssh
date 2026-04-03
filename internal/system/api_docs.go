@@ -215,7 +215,8 @@ func handleDocsPage(w http.ResponseWriter, r *http.Request) {
   "validade": "30/04/2026",
   "dias_validos": 30,
   "limite": 1,
-  "xray_uuid": "f47ac10b-..."
+  "xray_uuid": "f47ac10b-...",
+  "dominio": "dns.meusite.com"
 }
                     </div>
 
@@ -263,6 +264,11 @@ func handleDocsPage(w http.ResponseWriter, r *http.Request) {
                                 <td><code>xray_uuid</code></td>
                                 <td>string</td>
                                 <td>UUID gerado para conexões V2Ray/Xray</td>
+                            </tr>
+                            <tr>
+                                <td><code>dominio</code></td>
+                                <td>string</td>
+                                <td>Domínio configurado para o servidor</td>
                             </tr>
                         </tbody>
                     </table>
