@@ -3043,6 +3043,7 @@ func handleApiActivationMenu() {
 		days, _ := db.GetConfig("api_days")
 		limit, _ := db.GetConfig("api_limit")
 		referer, _ := db.GetConfig("api_referer")
+		domain, _ := db.GetConfig("api_domain")
 
 		if days == "" {
 			days = "30"
@@ -3053,11 +3054,15 @@ func handleApiActivationMenu() {
 		if referer == "" {
 			referer = "Sem restrição"
 		}
+		if domain == "" {
+			domain = "Não configurado"
+		}
 
 		ui.FormatLine(fmt.Sprintf("STATUS: %s", statusStr))
 		ui.FormatLine(fmt.Sprintf("DIAS DE VALIDADE: %s dias", days))
 		ui.FormatLine(fmt.Sprintf("LIMITE CONEXÕES: %s", limit))
 		ui.FormatLine(fmt.Sprintf("REFERER PERMITIDO: %s", referer))
+		ui.FormatLine(fmt.Sprintf("DOMÍNIO DA API:   %s", domain))
 		ui.DrawLine()
 
 		ui.FormatLine(fmt.Sprintf("%s[ 01 ]%s ATIVAR / REINICIAR API", ui.Yellow, ui.Reset))
@@ -3066,6 +3071,7 @@ func handleApiActivationMenu() {
 		ui.FormatLine(fmt.Sprintf("%s[ 04 ]%s VER TOKEN / URL", ui.Yellow, ui.Reset))
 		ui.FormatLine(fmt.Sprintf("%s[ 05 ]%s REVOGAR E CRIAR NOVO TOKEN", ui.Yellow, ui.Reset))
 		ui.FormatLine(fmt.Sprintf("%s[ 06 ]%s CONFIGURAR DOMÍNIOS (REFERER)", ui.Yellow, ui.Reset))
+		ui.FormatLine(fmt.Sprintf("%s[ 07 ]%s GERENCIAR DOMÍNIO DA API", ui.Yellow, ui.Reset))
 		ui.FormatLine(fmt.Sprintf("%s[ 00 ]%s VOLTAR", ui.Red, ui.Reset))
 		ui.DrawLine()
 
@@ -3126,6 +3132,52 @@ func handleApiActivationMenu() {
 			ref := ui.GetInput("Digite o domínio permitido (ex: meuapp.com) ou deixe vazio para todos")
 			db.SetConfig("api_referer", ref)
 			ui.PrintSuccess("Configuração de Referer atualizada!")
+			pause()
+		case "07", "7":
+			handleApiDomainMenu()
+		case "00", "0":
+			return
+		}
+	}
+}
+
+func handleApiDomainMenu() {
+	for {
+		ui.ClearScreen()
+		ui.DrawLine()
+		ui.FormatLine(ui.CenterText("GERENCIAR DOMÍNIO DA API", ui.PanelWidth-4))
+		ui.DrawLine()
+
+		domain, _ := db.GetConfig("api_domain")
+		if domain == "" {
+			domain = "Nenhum domínio configurado."
+		}
+
+		ui.FormatLine(fmt.Sprintf("DOMÍNIO ATUAL: %s%s%s", ui.Yellow, domain, ui.Reset))
+		ui.DrawLine()
+
+		ui.FormatLine(fmt.Sprintf("%s[ 01 ]%s ADICIONAR / EDITAR DOMÍNIO", ui.Yellow, ui.Reset))
+		ui.FormatLine(fmt.Sprintf("%s[ 02 ]%s REMOVER DOMÍNIO", ui.Yellow, ui.Reset))
+		ui.FormatLine(fmt.Sprintf("%s[ 00 ]%s VOLTAR", ui.Red, ui.Reset))
+		ui.DrawLine()
+
+		choice := ui.GetInput("Escolha uma opção")
+		switch choice {
+		case "01", "1":
+			newDomain := ui.GetInput("Digite o novo domínio (ex: dns.meusite.com)")
+			if newDomain != "" {
+				db.SetConfig("api_domain", newDomain)
+				ui.PrintSuccess("Domínio atualizado com sucesso!")
+			} else {
+				ui.PrintError("O domínio não pode ser vazio!")
+			}
+			pause()
+		case "02", "2":
+			confirm := ui.GetInput("Deseja realmente remover o domínio? (s/N)")
+			if strings.ToLower(confirm) == "s" {
+				db.SetConfig("api_domain", "")
+				ui.PrintSuccess("Domínio removido!")
+			}
 			pause()
 		case "00", "0":
 			return
