@@ -170,10 +170,11 @@ func InstallXrayExtended(host, sni, bugHost, host2, sni2, bugHost2, uuid string)
 
 	// ── Criar diretórios necessários ───────────────────────────────────────
 	os.MkdirAll("/var/log/xray", 0755)
+	exec.Command("chown", "-R", "root:root", "/var/log/xray").Run()
 	exec.Command("touch", "/var/log/xray/access.log").Run()
-	exec.Command("chmod", "644", "/var/log/xray/access.log").Run()
+	exec.Command("chmod", "664", "/var/log/xray/access.log").Run()
 	exec.Command("touch", "/var/log/xray/error.log").Run()
-	exec.Command("chmod", "644", "/var/log/xray/error.log").Run()
+	exec.Command("chmod", "664", "/var/log/xray/error.log").Run()
 
 	// ── Gerar certificado SSL auto-assinado ──────────────────────────────────
 	xlog("[⏳] Gerando certificados SSL...")
@@ -416,7 +417,6 @@ func fixCertPermissions() error {
 	return nil
 }
 
-// writeXrayServiceFile sobrescreve o unit do systemd para o Xray rodar como root.
 func writeXrayServiceFile() error {
 	const unit = `[Unit]
 Description=Xray Service
@@ -424,14 +424,17 @@ Documentation=https://github.com/xtls
 After=network.target nss-lookup.target
 
 [Service]
-Type=simple
 User=root
+Group=root
+Type=simple
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
 NoNewPrivileges=false
 ExecStart=/usr/local/bin/xray run -config /usr/local/etc/xray/config.json
 Restart=on-failure
 RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
 
 [Install]
 WantedBy=multi-user.target
@@ -456,6 +459,9 @@ func killPort443Conflicts() error {
 
 // reloadAndRestartXray executa a sequência completa de reload e restart do systemd.
 func reloadAndRestartXray() error {
+	// Remover unit instalada pelo script oficial em /lib/ se houver conflito
+	os.Remove("/lib/systemd/system/xray.service")
+
 	steps := [][]string{
 		{"systemctl", "daemon-reexec"},
 		{"systemctl", "daemon-reload"},
